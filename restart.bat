@@ -1,0 +1,3 @@
+@echo off
+echo Limpiando cache de Metro...
+npx expo start --clear --reset-cache

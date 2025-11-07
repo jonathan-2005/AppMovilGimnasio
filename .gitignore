@@ -1,0 +1,41 @@
+.expo/
+.expo-shared/
+.expo/web-build/
+.expo/packager-info.json
+.expo/settings.json
+.expo/metro-cache/
+.expo/cache/
+
+# Node modules
+node_modules/
+
+# Build artifacts
+android/app/build/
+android/.gradle/
+android/.idea/
+android/.cxx/
+android/local.properties
+ios/build/
+ios/Pods/
+ios/DerivedData/
+
+# Expo updates & caches
+.expo-updates/
+dist/
+web-build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+expo-error.log*
+
+# Editor settings
+.vscode/
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
