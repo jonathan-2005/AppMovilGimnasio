@@ -201,10 +201,18 @@ interface ClaseReservable {
          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
            <Text style={styles.backArrow}>←</Text>
          </TouchableOpacity>
-         <Text style={styles.title}>Reservas</Text>
-         <TouchableOpacity style={styles.themeButton} onPress={toggleTheme}>
-           <Text style={styles.themeIcon}>{themeIcon}</Text>
-         </TouchableOpacity>
+        <Text style={styles.title}>Reservas</Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.historyButton}
+            onPress={() => navigation.navigate('MisReservas')}
+          >
+            <Text style={styles.historyIcon}>🗒️</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.themeButton} onPress={toggleTheme}>
+            <Text style={styles.themeIcon}>{themeIcon}</Text>
+          </TouchableOpacity>
+        </View>
        </View>
 
        {selectedActivity && (
@@ -394,6 +402,24 @@ interface ClaseReservable {
      themeIcon: {
        fontSize: 18,
      },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    historyButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    historyIcon: {
+      fontSize: 16,
+    },
      selectedActivityContainer: {
        flexDirection: 'row',
        alignItems: 'center',

@@ -58,6 +58,27 @@ export interface SesionReservaResponse {
   reserva: any;
 }
 
+export interface ReservaCliente {
+  id: number;
+  estado: string;
+  actividad: string;
+  fechaSesion: string;
+  horaInicio?: string | null;
+  horaFin?: string | null;
+  sede?: string | null;
+  espacio?: string | null;
+  entrenador?: string | null;
+  observaciones?: string | null;
+  fechaReserva: string;
+  fechaCancelacion?: string | null;
+  motivoCancelacion?: string | null;
+}
+
+export interface CancelarReservaResponse {
+  mensaje: string;
+  estado?: string;
+}
+
 const normalizeArrayResponse = <T,>(data: any): T[] => {
   if (!data) {
     return [];
@@ -122,7 +143,68 @@ export const ReservasService = {
 
     return response.data as SesionReservaResponse;
   },
+
+  async listarMisReservas(): Promise<ReservaCliente[]> {
+    const response = await api.get('horarios/api/reservas/mis_reservas/');
+    const items = normalizeArrayResponse<any>(response.data);
+    return items.map(mapReservaCliente);
+  },
+
+  async cancelarReserva(reservaId: number, motivo?: string): Promise<CancelarReservaResponse> {
+    const response = await api.post(`horarios/api/reservas/${reservaId}/cancelar/`, {
+      motivo,
+    });
+    return response.data as CancelarReservaResponse;
+  },
 };
 
 export default ReservasService;
+
+const mapReservaCliente = (item: any): ReservaCliente => {
+  const sesion = item?.sesion_detalle ?? {};
+  const horario = sesion?.horario_detalle ?? {};
+  const espacio = sesion?.espacio_efectivo_detalle ?? horario?.espacio_detalle ?? {};
+  const entrenador = sesion?.entrenador_efectivo_detalle ?? horario?.entrenador_detalle ?? {};
+
+  return {
+    id: item?.id ?? 0,
+    estado: item?.estado ?? 'pendiente',
+    actividad:
+      item?.actividad_nombre ??
+      horario?.tipo_actividad_detalle?.nombre ??
+      sesion?.horario?.tipo_actividad?.nombre ??
+      'Actividad',
+    fechaSesion: item?.fecha_sesion ?? sesion?.fecha ?? '',
+    horaInicio: formatHora(item?.hora_inicio ?? sesion?.hora_inicio_efectiva),
+    horaFin: formatHora(item?.hora_fin ?? sesion?.hora_fin_efectiva),
+    sede:
+      espacio?.sede_nombre ??
+      horario?.sede_nombre ??
+      espacio?.sede?.nombre ??
+      null,
+    espacio: espacio?.nombre ?? horario?.espacio_detalle?.nombre ?? null,
+    entrenador: entrenador?.nombre_completo ?? null,
+    observaciones: item?.observaciones ?? null,
+    fechaReserva: item?.fecha_reserva ?? '',
+    fechaCancelacion: item?.fecha_cancelacion ?? null,
+    motivoCancelacion: item?.motivo_cancelacion ?? null,
+  };
+};
+
+const formatHora = (hora?: string | null): string | null => {
+  if (!hora) {
+    return null;
+  }
+
+  if (hora.length === 5) {
+    return hora;
+  }
+
+  // Formato HH:MM:SS -> devolver HH:MM
+  if (hora.length >= 5) {
+    return hora.slice(0, 5);
+  }
+
+  return hora;
+};
 

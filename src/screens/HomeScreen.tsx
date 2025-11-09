@@ -71,6 +71,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <Text style={[styles.menuText, { color: colors.text }]}>Reservas</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={[styles.menuButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          onPress={() => navigation.navigate('MisReservas')}
+        >
+          <View style={styles.menuIcon}>
+            <Text style={styles.iconText}>🗒️</Text>
+          </View>
+          <Text style={[styles.menuText, { color: colors.text }]}>Mis reservas</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity 
           style={[styles.menuButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={() => navigation.navigate('Membresias')}

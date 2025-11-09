@@ -10,8 +10,16 @@ import HomeScreen from './src/screens/HomeScreen';
 import ReservasScreen from './src/screens/ReservasScreen';
 import MembresiasScreen from './src/screens/MembresiasScreen';
 import ActivitiesScreen from './src/screens/ActivitiesScreen';
+import MyReservationsScreen from './src/screens/MyReservationsScreen';
 
-type ScreenName = 'Login' | 'Register' | 'Home' | 'Reservas' | 'Membresias' | 'Actividades';
+type ScreenName =
+  | 'Login'
+  | 'Register'
+  | 'Home'
+  | 'Reservas'
+  | 'Membresias'
+  | 'Actividades'
+  | 'MisReservas';
 
 interface ScreenState {
   name: ScreenName;
@@ -74,6 +82,8 @@ export default function App() {
         return <MembresiasScreen navigation={navigation} />;
       case 'Actividades':
         return <ActivitiesScreen navigation={navigation} />;
+      case 'MisReservas':
+        return <MyReservationsScreen navigation={navigation} />;
       default:
         return <LoginScreen navigation={navigation} />;
     }
