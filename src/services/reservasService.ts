@@ -145,13 +145,13 @@ export const ReservasService = {
   },
 
   async listarMisReservas(): Promise<ReservaCliente[]> {
-    const response = await api.get('horarios/api/reservas/mis_reservas/');
+    const response = await api.get('horarios/api/reservas-clases/mis_reservas/');
     const items = normalizeArrayResponse<any>(response.data);
     return items.map(mapReservaCliente);
   },
 
   async cancelarReserva(reservaId: number, motivo?: string): Promise<CancelarReservaResponse> {
-    const response = await api.post(`horarios/api/reservas/${reservaId}/cancelar/`, {
+    const response = await api.post(`horarios/api/reservas-clases/${reservaId}/cancelar/`, {
       motivo,
     });
     return response.data as CancelarReservaResponse;
