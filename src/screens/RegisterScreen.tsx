@@ -28,6 +28,9 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
     genero: '',
     objetivo_fitness: '',
     nivel_experiencia: '',
+    contactoEmergenciaNombre: '',
+    contactoEmergenciaTelefono: '',
+    contactoEmergenciaParentesco: '',
   });
   const [loading, setLoading] = useState(false);
   const { colors } = useTheme();
@@ -89,6 +92,16 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
         newUser.genero = formData.genero;
       }
       
+      if (formData.contactoEmergenciaNombre) {
+        newUser.contacto_emergencia_nombre = formData.contactoEmergenciaNombre;
+      }
+      if (formData.contactoEmergenciaTelefono) {
+        newUser.contacto_emergencia_telefono = formData.contactoEmergenciaTelefono;
+      }
+      if (formData.contactoEmergenciaParentesco) {
+        newUser.contacto_emergencia_parentesco = formData.contactoEmergenciaParentesco;
+      }
+      
       newUser.objetivo_fitness = formData.objetivo_fitness || 'mantenimiento';
       newUser.nivel_experiencia = formData.nivel_experiencia || 'principiante';
 
@@ -115,7 +128,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
       Alert.alert(
         'Éxito', 
         'Cuenta creada exitosamente en el servidor. Ahora puedes iniciar sesión con tus credenciales.', 
-        [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+        [{ text: 'OK', onPress: () => navigation.replace('Login') }]
       );
       
     } catch (error: any) {
@@ -255,8 +268,8 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
           style={styles.input}
           placeholder="Nombre Completo"
           placeholderTextColor={colors.textSecondary}
-          value={formData.telefonoEmergencia}
-          onChangeText={(value) => handleInputChange('telefonoEmergencia', value)}
+          value={formData.contactoEmergenciaNombre}
+          onChangeText={(value) => handleInputChange('contactoEmergenciaNombre', value)}
         />
 
         <TextInput
@@ -264,14 +277,16 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
           placeholder="Teléfono"
           placeholderTextColor={colors.textSecondary}
           keyboardType="phone-pad"
+          value={formData.contactoEmergenciaTelefono}
+          onChangeText={(value) => handleInputChange('contactoEmergenciaTelefono', value)}
         />
 
         <TextInput
           style={styles.input}
           placeholder="Parentesco"
           placeholderTextColor={colors.textSecondary}
-          value={formData.parentesco}
-          onChangeText={(value) => handleInputChange('parentesco', value)}
+          value={formData.contactoEmergenciaParentesco}
+          onChangeText={(value) => handleInputChange('contactoEmergenciaParentesco', value)}
         />
       </View>
 

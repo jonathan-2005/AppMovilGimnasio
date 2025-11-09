@@ -53,12 +53,22 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       <View style={styles.menuContainer}>
         <TouchableOpacity 
           style={[styles.menuButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          onPress={() => navigation.navigate('Actividades')}
+        >
+          <View style={styles.menuIcon}>
+            <Text style={styles.iconText}>🔥</Text>
+          </View>
+          <Text style={[styles.menuText, { color: colors.text }]}>Actividades</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.menuButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={() => navigation.navigate('Reservas')}
         >
           <View style={styles.menuIcon}>
             <Text style={styles.iconText}>📅</Text>
           </View>
-          <Text style={[styles.menuText, { color: colors.text }]}>Ver Reserva</Text>
+          <Text style={[styles.menuText, { color: colors.text }]}>Reservas</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -68,7 +78,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <View style={styles.menuIcon}>
             <Text style={styles.iconText}>💳</Text>
           </View>
-          <Text style={[styles.menuText, { color: colors.text }]}>Ver Membresías</Text>
+          <Text style={[styles.menuText, { color: colors.text }]}>Membresías</Text>
         </TouchableOpacity>
       </View>
 
@@ -135,7 +145,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   menuContainer: {
-    gap: 20,
     marginBottom: 60,
   },
   menuButton: {
@@ -144,6 +153,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 12,
     borderWidth: 1,
+    marginBottom: 20,
   },
   menuIcon: {
     width: 40,

@@ -9,25 +9,53 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import ReservasScreen from './src/screens/ReservasScreen';
 import MembresiasScreen from './src/screens/MembresiasScreen';
+import ActivitiesScreen from './src/screens/ActivitiesScreen';
 
-type Screen = 'Login' | 'Register' | 'Home' | 'Reservas' | 'Membresias';
+type ScreenName = 'Login' | 'Register' | 'Home' | 'Reservas' | 'Membresias' | 'Actividades';
+
+interface ScreenState {
+  name: ScreenName;
+  params?: Record<string, any> | null;
+}
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<Screen>('Login');
+  const [stack, setStack] = useState<ScreenState[]>([{ name: 'Login', params: null }]);
+
+  const current = stack[stack.length - 1];
 
   const navigation = {
-    navigate: (screen: Screen) => setCurrentScreen(screen),
-    replace: (screen: Screen) => setCurrentScreen(screen),
+    navigate: (name: ScreenName, params?: Record<string, any>) => {
+      setStack((prev) => [...prev, { name, params: params ?? null }]);
+    },
+    replace: (name: ScreenName, params?: Record<string, any>) => {
+      setStack([{ name, params: params ?? null }]);
+    },
     goBack: () => {
-      // Lógica simple de navegación hacia atrás
-      if (currentScreen === 'Register') setCurrentScreen('Login');
-      else if (currentScreen === 'Reservas' || currentScreen === 'Membresias') setCurrentScreen('Home');
-      else setCurrentScreen('Login');
-    }
+      setStack((prev) => {
+        if (prev.length <= 1) {
+          return prev;
+        }
+        return prev.slice(0, -1);
+      });
+    },
+    setParams: (params: Record<string, any>) => {
+      setStack((prev) => {
+        const next = [...prev];
+        const currentState = next[next.length - 1];
+        next[next.length - 1] = {
+          ...currentState,
+          params: {
+            ...(currentState.params ?? {}),
+            ...params,
+          },
+        };
+        return next;
+      });
+    },
   };
 
   const renderScreen = () => {
-    switch (currentScreen) {
+    switch (current.name) {
       case 'Login':
         return <LoginScreen navigation={navigation} />;
       case 'Register':
@@ -35,9 +63,17 @@ export default function App() {
       case 'Home':
         return <HomeScreen navigation={navigation} />;
       case 'Reservas':
-        return <ReservasScreen navigation={navigation} />;
+        return (
+          <ReservasScreen
+            navigation={navigation}
+            selectedActivity={current.params?.selectedActivity ?? null}
+            onClearSelectedActivity={() => navigation.setParams({ selectedActivity: null })}
+          />
+        );
       case 'Membresias':
         return <MembresiasScreen navigation={navigation} />;
+      case 'Actividades':
+        return <ActivitiesScreen navigation={navigation} />;
       default:
         return <LoginScreen navigation={navigation} />;
     }
