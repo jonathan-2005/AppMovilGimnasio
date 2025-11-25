@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,12 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { useTheme } from '../context/ThemeContext';
 import authService from '../services/authService';
+import { Sede } from '../types/sede';
 
 interface RegisterScreenProps {
   navigation: any;
@@ -31,9 +34,31 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
     contactoEmergenciaNombre: '',
     contactoEmergenciaTelefono: '',
     contactoEmergenciaParentesco: '',
+    sede_id: 0, // ✅ AGREGADO: campo sede_id
   });
+  const [sedes, setSedes] = useState<Sede[]>([]); // ✅ AGREGADO: estado para sedes
+  const [loadingSedes, setLoadingSedes] = useState(true); // ✅ AGREGADO: loading de sedes
   const [loading, setLoading] = useState(false);
   const { colors } = useTheme();
+
+  // ✅ AGREGADO: Cargar sedes al montar el componente
+  useEffect(() => {
+    const cargarSedes = async () => {
+      try {
+        console.log('📍 Cargando sedes disponibles...');
+        const sedesDisponibles = await authService.obtenerSedesDisponibles();
+        setSedes(sedesDisponibles);
+        console.log(`✅ ${sedesDisponibles.length} sedes cargadas`);
+      } catch (error) {
+        console.error('❌ Error al cargar sedes:', error);
+        Alert.alert('Error', 'No se pudieron cargar las sedes disponibles');
+      } finally {
+        setLoadingSedes(false);
+      }
+    };
+
+    cargarSedes();
+  }, []);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -43,9 +68,9 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
   };
 
   const handleRegister = async () => {
-    // Validaciones básicas
-    if (!formData.email || !formData.password || !formData.nombre || !formData.apellido_paterno || !formData.telefono) {
-      Alert.alert('Error', 'Por favor completa todos los campos obligatorios (email, contraseña, nombre, apellido y teléfono)');
+    // ✅ MODIFICADO: Validar que se haya seleccionado una sede
+    if (!formData.email || !formData.password || !formData.nombre || !formData.apellido_paterno || !formData.telefono || !formData.sede_id) {
+      Alert.alert('Error', 'Por favor completa todos los campos obligatorios incluyendo la selección de sede');
       return;
     }
 
@@ -104,6 +129,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
       
       newUser.objetivo_fitness = formData.objetivo_fitness || 'mantenimiento';
       newUser.nivel_experiencia = formData.nivel_experiencia || 'principiante';
+      newUser.sede_id = formData.sede_id; // ✅ AGREGADO: incluir sede_id
 
       console.log('=== REGISTRO CON BACKEND DJANGO ===');
       console.log('Datos del usuario a registrar:', newUser);
@@ -223,7 +249,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
       {/* Personal Info Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Datos personales</Text>
-        
+
         <TextInput
           style={styles.input}
           placeholder="Nombre Completo"
@@ -258,6 +284,40 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
           value={formData.telefono}
           onChangeText={(value) => handleInputChange('telefono', value)}
         />
+      </View>
+
+      {/* ✅ NUEVO: Sede Selection Section */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Selecciona tu sede</Text>
+        <Text style={[styles.description, { color: colors.textSecondary, marginBottom: 10 }]}>
+          Elige la sede del gimnasio más cercana a tu ubicación
+        </Text>
+
+        {loadingSedes ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color={colors.text} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+              Cargando sedes disponibles...
+            </Text>
+          </View>
+        ) : (
+          <View style={[styles.pickerContainer, { borderColor: colors.border, backgroundColor: colors.background }]}>
+            <Picker
+              selectedValue={formData.sede_id}
+              onValueChange={(value) => setFormData({ ...formData, sede_id: value as number })}
+              style={[styles.picker, { color: colors.text }]}
+            >
+              <Picker.Item label="Selecciona una sede" value={0} />
+              {sedes.map((sede) => (
+                <Picker.Item
+                  key={sede.id}
+                  label={`${sede.nombre} - ${sede.direccion}`}
+                  value={sede.id}
+                />
+              ))}
+            </Picker>
+          </View>
+        )}
       </View>
 
       {/* Emergency Contact Section */}
@@ -466,6 +526,28 @@ const styles = StyleSheet.create({
   createButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  // ✅ NUEVOS ESTILOS: Para el selector de sede
+  pickerContainer: {
+    borderWidth: 1,
+    borderRadius: 8,
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  picker: {
+    height: 50,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderWidth: 1,
+    borderRadius: 8,
+    borderColor: '#ddd',
+  },
+  loadingText: {
+    marginLeft: 10,
+    fontSize: 14,
   },
 });
 

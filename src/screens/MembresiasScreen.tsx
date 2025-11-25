@@ -8,6 +8,8 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import MembresiasService, {
@@ -78,6 +80,10 @@ const MembresiasScreen: React.FC<MembresiasScreenProps> = ({ navigation }) => {
   const [currentMembership, setCurrentMembership] =
     useState<MembresiaCliente | null>(null);
   const [processingId, setProcessingId] = useState<number | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<MembershipCardData | null>(null);
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   const fetchData = useCallback(async () => {
     setErrorMessage(null);
@@ -164,26 +170,40 @@ const MembresiasScreen: React.FC<MembresiasScreenProps> = ({ navigation }) => {
     });
   }, [colors.primary, membresias, popularId]);
 
-  const currentMembershipSummary = useMemo(() => {
-    if (!currentMembership) {
-      return null;
-    }
+  const handleCancelarSuscripcion = useCallback(async () => {
+    if (!currentMembership) return;
 
-    const fechaFin = new Date(currentMembership.fecha_fin);
-    const fechaFinTexto = fechaFin.toLocaleDateString('es-MX', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-
-    return {
-      nombre: currentMembership.membresia?.nombre_plan ?? 'Membresía',
-      estado: currentMembership.estado,
-      diasRestantes: Math.max(currentMembership.dias_restantes, 0),
-      fechaFinTexto,
-      activa: currentMembership.activa,
-    };
-  }, [currentMembership]);
+    Alert.alert(
+      '¿Cancelar Suscripción?',
+      `¿Estás seguro de que deseas cancelar tu suscripción de ${currentMembership.membresia.nombre_plan}? Esta acción no se puede deshacer.`,
+      [
+        { text: 'No, mantener', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setCancelling(true);
+              await MembresiasService.cancelarSuscripcion(currentMembership.id);
+              Alert.alert(
+                'Suscripción Cancelada',
+                'Tu suscripción ha sido cancelada exitosamente.',
+                [{ text: 'OK', onPress: () => fetchData() }]
+              );
+            } catch (error: any) {
+              console.error('Error al cancelar suscripción:', error);
+              Alert.alert(
+                'Error',
+                error?.response?.data?.error || 'No se pudo cancelar la suscripción.'
+              );
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [currentMembership, fetchData]);
 
   const handleAdquirirMembresia = useCallback(
     (plan: MembershipCardData) => {
@@ -193,48 +213,64 @@ const MembresiasScreen: React.FC<MembresiasScreenProps> = ({ navigation }) => {
 
       if (currentMembership?.activa) {
         Alert.alert(
-          'Ya tienes una membresía',
-          `Tu membresía actual (${currentMembership.membresia.nombre_plan}) sigue activa.`
+          'Ya tienes una membresía activa',
+          `Tu membresía actual (${currentMembership.membresia.nombre_plan}) sigue activa. Puedes adquirir otra membresía después de que expire o cancelarla primero.`
         );
         return;
       }
 
-      Alert.alert(
-        'Confirmar Compra',
-        `¿Deseas adquirir la membresía ${plan.nombre} por $${plan.precio.toFixed(
-          2
-        )}?`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Comprar',
-            onPress: async () => {
-              try {
-                setProcessingId(plan.id);
-                await MembresiasService.adquirirMembresia(plan.id);
-                Alert.alert(
-                  '¡Éxito!',
-                  'Tu membresía fue activada correctamente.'
-                );
-                fetchData();
-              } catch (error: any) {
-                const detalle =
-                  error?.response?.data?.error ||
-                  error?.response?.data?.detail ||
-                  error?.message;
-                Alert.alert(
-                  'No se pudo completar la compra',
-                  detalle || 'Ocurrió un error inesperado.'
-                );
-              } finally {
-                setProcessingId(null);
-              }
-            },
-          },
-        ]
-      );
+      // Abrir modal de pago
+      setSelectedPlan(plan);
+      setShowPaymentModal(true);
     },
-    [currentMembership, fetchData, processingId]
+    [currentMembership, processingId]
+  );
+
+  const handleProcesarPago = useCallback(
+    async (metodoPago: string) => {
+      if (!selectedPlan) return;
+
+      try {
+        setProcessingPayment(true);
+
+        // 1. Procesar pago simulado
+        const resultadoPago = await MembresiasService.procesarPago(
+          selectedPlan.id,
+          metodoPago
+        );
+
+        if (resultadoPago.success) {
+          // 2. Si el pago fue exitoso, crear la suscripción
+          await MembresiasService.adquirirMembresia(selectedPlan.id, { metodo_pago: metodoPago as any });
+
+          setShowPaymentModal(false);
+          Alert.alert(
+            '¡Pago Exitoso!',
+            `Tu membresía ${selectedPlan.nombre} ha sido activada correctamente.\n\nID de transacción: ${resultadoPago.transaction_id}`,
+            [{ text: 'OK', onPress: () => fetchData() }]
+          );
+        } else {
+          // Pago rechazado
+          Alert.alert(
+            'Pago Rechazado',
+            resultadoPago.message || 'El pago no pudo ser procesado. Por favor intenta con otro método.'
+          );
+        }
+      } catch (error: any) {
+        console.error('Error al procesar pago:', error);
+        const detalle =
+          error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message;
+        Alert.alert(
+          'Error en el Pago',
+          detalle || 'Ocurrió un error inesperado al procesar el pago.'
+        );
+      } finally {
+        setProcessingPayment(false);
+      }
+    },
+    [selectedPlan, fetchData]
   );
 
   const styles = useMemo(
@@ -242,6 +278,94 @@ const MembresiasScreen: React.FC<MembresiasScreenProps> = ({ navigation }) => {
     [colors, isDarkMode]
   );
   const themeIcon = isDarkMode ? '☀️' : '🌙';
+
+  const renderCurrentMembership = () => {
+    if (!currentMembership) {
+      return (
+        <View style={styles.noMembershipCard}>
+          <Text style={styles.noMembershipIcon}>📋</Text>
+          <Text style={styles.noMembershipTitle}>Sin Membresía Activa</Text>
+          <Text style={styles.noMembershipSubtitle}>
+            Elige un plan para comenzar a entrenar con nosotros
+          </Text>
+        </View>
+      );
+    }
+
+    const fechaInicio = new Date(currentMembership.fecha_inicio);
+    const fechaFin = new Date(currentMembership.fecha_fin);
+    const fechaInicioTexto = fechaInicio.toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    const fechaFinTexto = fechaFin.toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+
+    const estadoColor =
+      currentMembership.estado === 'activa' ? '#4CAF50' :
+      currentMembership.estado === 'vencida' ? '#F44336' :
+      '#FF9800';
+
+    const estadoTexto = currentMembership.estado.charAt(0).toUpperCase() + currentMembership.estado.slice(1);
+
+    return (
+      <View style={[styles.currentMembershipCard, { borderColor: estadoColor }]}>
+        <View style={styles.currentMembershipHeader}>
+          <View style={styles.currentMembershipBadge}>
+            <Text style={styles.currentMembershipBadgeText}>MI MEMBRESÍA</Text>
+          </View>
+          <View style={[styles.estadoBadge, { backgroundColor: estadoColor }]}>
+            <Text style={styles.estadoTexto}>{estadoTexto}</Text>
+          </View>
+        </View>
+
+        <Text style={styles.currentMembershipName}>
+          {currentMembership.membresia.nombre_plan}
+        </Text>
+
+        <View style={styles.currentMembershipDetails}>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Inicio:</Text>
+            <Text style={styles.detailValue}>{fechaInicioTexto}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Vence:</Text>
+            <Text style={styles.detailValue}>{fechaFinTexto}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Días restantes:</Text>
+            <Text style={[styles.detailValue, { color: estadoColor, fontWeight: 'bold' }]}>
+              {Math.max(currentMembership.dias_restantes, 0)} días
+            </Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Precio pagado:</Text>
+            <Text style={styles.detailValue}>
+              ${numberFrom(currentMembership.membresia.precio).toFixed(2)}
+            </Text>
+          </View>
+        </View>
+
+        {currentMembership.activa && (
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={handleCancelarSuscripcion}
+            disabled={cancelling}
+          >
+            {cancelling ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.cancelButtonText}>Cancelar Suscripción</Text>
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -256,47 +380,6 @@ const MembresiasScreen: React.FC<MembresiasScreenProps> = ({ navigation }) => {
         <TouchableOpacity style={styles.themeButton} onPress={toggleTheme}>
           <Text style={styles.themeIcon}>{themeIcon}</Text>
         </TouchableOpacity>
-      </View>
-
-      <View style={styles.currentMembershipContainer}>
-        {currentMembershipSummary ? (
-          <>
-            <View style={styles.currentMembershipInfo}>
-              <View style={styles.currentMembershipBadge}>
-                <Text style={styles.currentMembershipText}>
-                  {currentMembershipSummary.nombre}
-                </Text>
-              </View>
-              <Text style={styles.currentMembershipStatus}>
-                Estado: {currentMembershipSummary.estado}
-              </Text>
-              <Text style={styles.currentMembershipMeta}>
-                Expira: {currentMembershipSummary.fechaFinTexto} •{' '}
-                {currentMembershipSummary.diasRestantes} días restantes
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.renewButton}
-              onPress={() => Alert.alert('Próximamente', 'Renovación manual.')}
-            >
-              <Text style={styles.renewButtonText}>Renovar</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <View style={styles.currentMembershipInfo}>
-            <Text style={styles.noMembershipTitle}>Aún no tienes membresía</Text>
-            <Text style={styles.noMembershipSubtitle}>
-              Elige un plan para comenzar a entrenar con nosotros.
-            </Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.upgradeContainer}>
-        <Text style={styles.upgradeTitle}>Planes disponibles</Text>
-        <Text style={styles.upgradeSubtitle}>
-          Compara los beneficios y selecciona el que mejor se adapte a ti.
-        </Text>
       </View>
 
       {loading && (
@@ -316,7 +399,7 @@ const MembresiasScreen: React.FC<MembresiasScreenProps> = ({ navigation }) => {
       )}
 
       <ScrollView
-        style={styles.membershipsList}
+        style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -327,119 +410,221 @@ const MembresiasScreen: React.FC<MembresiasScreenProps> = ({ navigation }) => {
           />
         }
       >
-        {!loading && !errorMessage && membershipCards.length === 0 && (
-          <View style={styles.feedbackContainer}>
-            <Text style={styles.feedbackText}>
-              No hay membresías activas en este momento.
-            </Text>
-          </View>
-        )}
+        {!loading && !errorMessage && renderCurrentMembership()}
 
-        {membershipCards.map((membresia) => {
-          const isProcessing = processingId === membresia.id;
-          return (
-            <View
-              key={membresia.id}
-              style={[
-                styles.membershipCard,
-                { borderColor: membresia.color },
-              ]}
-            >
-              <View style={styles.membershipHeader}>
-                <View style={styles.membershipTitleContainer}>
-                  <Text style={styles.membershipIcon}>{membresia.icon}</Text>
-                  <View>
-                    <Text style={styles.membershipName}>{membresia.nombre}</Text>
-                    <Text style={styles.membershipType}>{membresia.tipo}</Text>
-                  </View>
-                </View>
+        {!loading && !errorMessage && (
+          <>
+            <View style={styles.divider} />
 
-                {membresia.popular && (
-                  <View
-                    style={[
-                      styles.popularBadge,
-                      { backgroundColor: membresia.color },
-                    ]}
-                  >
-                    <Text style={styles.popularBadgeText}>MÁS POPULAR</Text>
-                  </View>
-                )}
-              </View>
-
-              {membresia.descripcion ? (
-                <Text style={styles.membershipDescription}>
-                  {membresia.descripcion}
-                </Text>
-              ) : null}
-
-              <View style={styles.priceContainer}>
-                <Text style={styles.price}>
-                  ${membresia.precio.toFixed(2)}
-                </Text>
-                <Text style={styles.pricePeriod}>{membresia.duracionLabel}</Text>
-              </View>
-
-              <View style={styles.benefitsContainer}>
-                {membresia.beneficios.map((benefit, index) => (
-                  <View key={`${membresia.id}-${index}`} style={styles.benefitRow}>
-                    <Text style={[styles.checkIcon, { color: membresia.color }]}>
-                      ✓
-                    </Text>
-                    <Text style={styles.benefitText}>{benefit}</Text>
-                  </View>
-                ))}
-              </View>
-
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  {
-                    backgroundColor: membresia.popular
-                      ? membresia.color
-                      : colors.surface,
-                    borderColor: membresia.popular
-                      ? membresia.color
-                      : colors.border,
-                  },
-                ]}
-                onPress={() => handleAdquirirMembresia(membresia)}
-                disabled={isProcessing}
-              >
-                {isProcessing ? (
-                  <ActivityIndicator
-                    size="small"
-                    color={membresia.popular ? colors.background : colors.text}
-                  />
-                ) : (
-                  <Text
-                    style={[
-                      styles.actionButtonText,
-                      membresia.popular
-                        ? styles.actionButtonTextWhite
-                        : { color: colors.text },
-                    ]}
-                  >
-                    {membresia.popular
-                      ? `Mejorar a ${membresia.nombre}`
-                      : `Seleccionar ${membresia.nombre}`}
-                  </Text>
-                )}
-              </TouchableOpacity>
+            <View style={styles.availablePlansHeader}>
+              <Text style={styles.availablePlansTitle}>
+                {currentMembership?.activa ? 'Otros planes disponibles' : 'Planes disponibles'}
+              </Text>
+              <Text style={styles.availablePlansSubtitle}>
+                Compara beneficios y elige el que mejor se adapte a ti
+              </Text>
             </View>
-          );
-        })}
 
-        <View style={styles.paymentMethodsContainer}>
-          <Text style={styles.paymentMethodsTitle}>
-            Métodos de pago aceptados
-          </Text>
-          <Text style={styles.paymentMethodsText}>
-            • Tarjeta de crédito o débito{'\n'}• Transferencia bancaria{'\n'}•
-            Efectivo en recepción{'\n'}• Todas las membresías se renuevan
-            automáticamente
-          </Text>
-        </View>
+            {membershipCards.length === 0 && (
+              <View style={styles.feedbackContainer}>
+                <Text style={styles.feedbackText}>
+                  No hay membresías activas en este momento.
+                </Text>
+              </View>
+            )}
+
+            {membershipCards.map((membresia) => {
+              const isProcessing = processingId === membresia.id;
+              return (
+                <View
+                  key={membresia.id}
+                  style={[
+                    styles.membershipCard,
+                    { borderColor: membresia.color },
+                  ]}
+                >
+                  <View style={styles.membershipHeader}>
+                    <View style={styles.membershipTitleContainer}>
+                      <Text style={styles.membershipIcon}>{membresia.icon}</Text>
+                      <View>
+                        <Text style={styles.membershipName}>{membresia.nombre}</Text>
+                        <Text style={styles.membershipType}>{membresia.tipo}</Text>
+                      </View>
+                    </View>
+
+                    {membresia.popular && (
+                      <View
+                        style={[
+                          styles.popularBadge,
+                          { backgroundColor: membresia.color },
+                        ]}
+                      >
+                        <Text style={styles.popularBadgeText}>MÁS POPULAR</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {membresia.descripcion ? (
+                    <Text style={styles.membershipDescription}>
+                      {membresia.descripcion}
+                    </Text>
+                  ) : null}
+
+                  <View style={styles.priceContainer}>
+                    <Text style={styles.price}>
+                      ${membresia.precio.toFixed(2)}
+                    </Text>
+                    <Text style={styles.pricePeriod}>{membresia.duracionLabel}</Text>
+                  </View>
+
+                  <View style={styles.benefitsContainer}>
+                    {membresia.beneficios.map((benefit, index) => (
+                      <View key={`${membresia.id}-${index}`} style={styles.benefitRow}>
+                        <Text style={[styles.checkIcon, { color: membresia.color }]}>
+                          ✓
+                        </Text>
+                        <Text style={styles.benefitText}>{benefit}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      {
+                        backgroundColor: membresia.popular
+                          ? membresia.color
+                          : colors.surface,
+                        borderColor: membresia.popular
+                          ? membresia.color
+                          : colors.border,
+                      },
+                    ]}
+                    onPress={() => handleAdquirirMembresia(membresia)}
+                    disabled={isProcessing || currentMembership?.activa}
+                  >
+                    {isProcessing ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={membresia.popular ? colors.background : colors.text}
+                      />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.actionButtonText,
+                          membresia.popular
+                            ? styles.actionButtonTextWhite
+                            : { color: colors.text },
+                        ]}
+                      >
+                        {currentMembership?.activa
+                          ? 'Membresía activa'
+                          : `Seleccionar ${membresia.nombre}`
+                        }
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+
+            <View style={styles.paymentMethodsContainer}>
+              <Text style={styles.paymentMethodsTitle}>
+                Métodos de pago aceptados
+              </Text>
+              <Text style={styles.paymentMethodsText}>
+                • Tarjeta de crédito o débito{'\n'}• Transferencia bancaria{'\n'}•
+                Efectivo en recepción{'\n'}• Todas las membresías se renuevan
+                automáticamente
+              </Text>
+            </View>
+          </>
+        )}
       </ScrollView>
+
+      {/* Modal de Pasarela de Pago Simulada */}
+      <Modal
+        visible={showPaymentModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => !processingPayment && setShowPaymentModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              💳 Procesar Pago
+            </Text>
+
+            {selectedPlan && (
+              <View style={styles.modalPlanInfo}>
+                <Text style={[styles.modalPlanName, { color: colors.text }]}>
+                  {selectedPlan.nombre}
+                </Text>
+                <Text style={[styles.modalPlanPrice, { color: colors.primary }]}>
+                  ${selectedPlan.precio.toFixed(2)}
+                </Text>
+              </View>
+            )}
+
+            {processingPayment ? (
+              <View style={styles.modalProcessing}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={[styles.modalProcessingText, { color: colors.text }]}>
+                  Procesando pago...
+                </Text>
+                <Text style={[styles.modalProcessingSubtext, { color: colors.textSecondary }]}>
+                  Esto puede tomar unos segundos
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+                  Selecciona un método de pago:
+                </Text>
+
+                <TouchableOpacity
+                  style={[styles.paymentMethodButton, { borderColor: colors.border }]}
+                  onPress={() => handleProcesarPago('tarjeta')}
+                >
+                  <Text style={styles.paymentMethodIcon}>💳</Text>
+                  <Text style={[styles.paymentMethodText, { color: colors.text }]}>
+                    Tarjeta de Crédito/Débito
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.paymentMethodButton, { borderColor: colors.border }]}
+                  onPress={() => handleProcesarPago('transferencia')}
+                >
+                  <Text style={styles.paymentMethodIcon}>🏦</Text>
+                  <Text style={[styles.paymentMethodText, { color: colors.text }]}>
+                    Transferencia Bancaria
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.paymentMethodButton, { borderColor: colors.border }]}
+                  onPress={() => handleProcesarPago('efectivo')}
+                >
+                  <Text style={styles.paymentMethodIcon}>💵</Text>
+                  <Text style={[styles.paymentMethodText, { color: colors.text }]}>
+                    Efectivo en Recepción
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalCancelButton, { borderColor: colors.border }]}
+                  onPress={() => setShowPaymentModal(false)}
+                >
+                  <Text style={[styles.modalCancelText, { color: colors.text }]}>
+                    Cancelar
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -485,78 +670,138 @@ const createStyles = (colors: any, isDarkMode: boolean) =>
     themeIcon: {
       fontSize: 18,
     },
-    currentMembershipContainer: {
+    scrollView: {
+      flex: 1,
+      paddingHorizontal: 20,
+    },
+    // Estilos de membresía actual
+    currentMembershipCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      padding: 24,
+      marginTop: 10,
+      marginBottom: 20,
+      borderWidth: 3,
+      shadowColor: isDarkMode ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.15)',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.4,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    currentMembershipHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingHorizontal: 20,
-      marginBottom: 20,
-    },
-    currentMembershipInfo: {
-      flex: 1,
-      marginRight: 12,
+      marginBottom: 16,
     },
     currentMembershipBadge: {
-      alignSelf: 'flex-start',
-      backgroundColor: colors.success,
+      backgroundColor: colors.primary,
       paddingHorizontal: 12,
       paddingVertical: 6,
-      borderRadius: 12,
-      marginBottom: 8,
+      borderRadius: 8,
     },
-    currentMembershipText: {
+    currentMembershipBadgeText: {
       color: colors.background,
+      fontSize: 11,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+    },
+    estadoBadge: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 8,
+    },
+    estadoTexto: {
+      color: '#FFFFFF',
       fontSize: 12,
       fontWeight: '600',
     },
-    currentMembershipStatus: {
+    currentMembershipName: {
+      fontSize: 24,
+      fontWeight: 'bold',
       color: colors.text,
-      fontSize: 14,
-      fontWeight: '500',
-      marginBottom: 4,
+      marginBottom: 20,
     },
-    currentMembershipMeta: {
+    currentMembershipDetails: {
+      marginBottom: 20,
+    },
+    detailRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+      paddingBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    detailLabel: {
+      fontSize: 14,
       color: colors.textSecondary,
-      fontSize: 12,
+      fontWeight: '500',
+    },
+    detailValue: {
+      fontSize: 14,
+      color: colors.text,
+      fontWeight: '600',
+    },
+    cancelButton: {
+      backgroundColor: '#F44336',
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    cancelButtonText: {
+      color: '#FFFFFF',
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    noMembershipCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      padding: 32,
+      marginTop: 10,
+      marginBottom: 20,
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: colors.border,
+      borderStyle: 'dashed',
+    },
+    noMembershipIcon: {
+      fontSize: 48,
+      marginBottom: 16,
     },
     noMembershipTitle: {
-      color: colors.text,
-      fontSize: 16,
-      fontWeight: '600',
-      marginBottom: 4,
-    },
-    noMembershipSubtitle: {
-      color: colors.textSecondary,
-      fontSize: 13,
-      lineHeight: 18,
-    },
-    renewButton: {
-      backgroundColor: colors.primary,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderRadius: 12,
-    },
-    renewButtonText: {
-      color: colors.background,
-      fontWeight: '600',
-    },
-    upgradeContainer: {
-      paddingHorizontal: 20,
-      marginBottom: 10,
-    },
-    upgradeTitle: {
       fontSize: 18,
       fontWeight: 'bold',
       color: colors.text,
-      marginBottom: 4,
+      marginBottom: 8,
+      textAlign: 'center',
     },
-    upgradeSubtitle: {
+    noMembershipSubtitle: {
       fontSize: 14,
       color: colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
     },
-    membershipsList: {
-      flex: 1,
-      paddingHorizontal: 20,
+    divider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginVertical: 12,
+    },
+    availablePlansHeader: {
+      marginBottom: 16,
+    },
+    availablePlansTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: colors.text,
+      marginBottom: 6,
+    },
+    availablePlansSubtitle: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      lineHeight: 20,
     },
     membershipCard: {
       backgroundColor: colors.surface,
@@ -704,6 +949,87 @@ const createStyles = (colors: any, isDarkMode: boolean) =>
       fontSize: 12,
       color: colors.textSecondary,
       lineHeight: 18,
+    },
+    // Estilos del Modal de Pago
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'flex-end',
+    },
+    modalContainer: {
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      paddingBottom: 40,
+    },
+    modalTitle: {
+      fontSize: 22,
+      fontWeight: 'bold',
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+    modalPlanInfo: {
+      alignItems: 'center',
+      marginBottom: 24,
+      paddingBottom: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    modalPlanName: {
+      fontSize: 18,
+      fontWeight: '600',
+      marginBottom: 8,
+    },
+    modalPlanPrice: {
+      fontSize: 32,
+      fontWeight: 'bold',
+    },
+    modalSubtitle: {
+      fontSize: 14,
+      marginBottom: 16,
+      textAlign: 'center',
+    },
+    modalProcessing: {
+      alignItems: 'center',
+      paddingVertical: 40,
+    },
+    modalProcessingText: {
+      fontSize: 16,
+      fontWeight: '600',
+      marginTop: 16,
+    },
+    modalProcessingSubtext: {
+      fontSize: 14,
+      marginTop: 8,
+    },
+    paymentMethodButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      borderRadius: 12,
+      borderWidth: 2,
+      marginBottom: 12,
+      backgroundColor: colors.background,
+    },
+    paymentMethodIcon: {
+      fontSize: 24,
+      marginRight: 12,
+    },
+    paymentMethodText: {
+      fontSize: 16,
+      fontWeight: '600',
+      flex: 1,
+    },
+    modalCancelButton: {
+      padding: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      marginTop: 8,
+      alignItems: 'center',
+    },
+    modalCancelText: {
+      fontSize: 16,
+      fontWeight: '600',
     },
   });
 

@@ -1,15 +1,17 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { config } from '../config/config';
 
-// Configuración de la API - Cambia esta IP por la de tu computadora
-const API_BASE_URL = 'http://192.168.1.70:8000/api/'; // IP del backend Django
+// Configuración de la API
+// ⚠️ Para cambiar la IP, edita el archivo: src/config/config.ts
+const API_BASE_URL = config.API_BASE_URL;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: config.API_TIMEOUT,
 });
 
 // Interceptor para agregar token automáticamente

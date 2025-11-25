@@ -54,8 +54,8 @@ export interface SesionDisponible {
 }
 
 export interface SesionReservaResponse {
-  mensaje: string;
-  reserva: any;
+  message: string;
+  data: any;
 }
 
 export interface ReservaCliente {
@@ -97,28 +97,35 @@ const normalizeArrayResponse = <T,>(data: any): T[] => {
 
 interface SesionesParams {
   tipoActividadId?: number;
-  soloDisponibles?: boolean;
   fechaDesde?: string;
   fechaHasta?: string;
 }
 
 export const ReservasService = {
+  /**
+   * Listar actividades disponibles con sus sesiones
+   * Endpoint: GET /api/horarios/tipos-actividad/
+   */
   async listarActividadesDisponibles(): Promise<ActividadDisponible[]> {
-    const response = await api.get('horarios/api/actividades/disponibles/');
+    console.log('📋 Obteniendo actividades disponibles...');
+    const response = await api.get('horarios/tipos-actividad/', {
+      params: { activo: true }
+    });
+    console.log(`✅ ${response.data.length} actividades encontradas`);
     return normalizeArrayResponse<ActividadDisponible>(response.data);
   },
 
+  /**
+   * Obtener sesiones disponibles para reservar
+   * Endpoint: GET /api/horarios/sesiones/disponibles/
+   * El backend filtra automáticamente por la sede del cliente autenticado
+   */
   async obtenerSesionesDisponibles(params?: SesionesParams): Promise<SesionDisponible[]> {
-    const queryParams: Record<string, any> = {
-      ordering: 'fecha',
-    };
+    console.log('📅 Obteniendo sesiones disponibles...');
+    const queryParams: Record<string, any> = {};
 
     if (params?.tipoActividadId) {
       queryParams.tipo_actividad = params.tipoActividadId;
-    }
-
-    if (params?.soloDisponibles !== undefined) {
-      queryParams.solo_disponibles = params.soloDisponibles;
     }
 
     if (params?.fechaDesde) {
@@ -129,31 +136,53 @@ export const ReservasService = {
       queryParams.fecha_hasta = params.fechaHasta;
     }
 
-    const response = await api.get('horarios/api/sesiones/disponibles/', {
+    const response = await api.get('horarios/sesiones/disponibles/', {
       params: queryParams,
     });
 
+    console.log(`✅ ${response.data.length} sesiones disponibles encontradas`);
     return normalizeArrayResponse<SesionDisponible>(response.data);
   },
 
+  /**
+   * Reservar una sesión de clase
+   * Endpoint: POST /api/horarios/reservas-clases/
+   * El backend infiere automáticamente el cliente del token
+   */
   async reservarSesion(sesionId: number, observaciones?: string): Promise<SesionReservaResponse> {
-    const response = await api.post(`horarios/api/sesiones/${sesionId}/reservar/`, {
-      observaciones,
+    console.log(`📝 Reservando sesión ${sesionId}...`);
+    const response = await api.post('horarios/reservas-clases/', {
+      sesion_clase: sesionId,
+      observaciones: observaciones || ''
     });
 
+    console.log('✅ Reserva creada exitosamente');
     return response.data as SesionReservaResponse;
   },
 
+  /**
+   * Obtener mis reservas
+   * Endpoint: GET /api/horarios/reservas-clases/mis_reservas/
+   * El backend filtra automáticamente por el cliente autenticado
+   */
   async listarMisReservas(): Promise<ReservaCliente[]> {
-    const response = await api.get('horarios/api/reservas-clases/mis_reservas/');
+    console.log('📋 Obteniendo mis reservas...');
+    const response = await api.get('horarios/reservas-clases/mis_reservas/');
     const items = normalizeArrayResponse<any>(response.data);
+    console.log(`✅ ${items.length} reservas encontradas`);
     return items.map(mapReservaCliente);
   },
 
+  /**
+   * Cancelar una reserva
+   * Endpoint: POST /api/horarios/reservas-clases/{id}/cancelar/
+   */
   async cancelarReserva(reservaId: number, motivo?: string): Promise<CancelarReservaResponse> {
-    const response = await api.post(`horarios/api/reservas-clases/${reservaId}/cancelar/`, {
-      motivo,
+    console.log(`❌ Cancelando reserva ${reservaId}...`);
+    const response = await api.post(`horarios/reservas-clases/${reservaId}/cancelar/`, {
+      motivo: motivo || 'Cancelado por el cliente'
     });
+    console.log('✅ Reserva cancelada exitosamente');
     return response.data as CancelarReservaResponse;
   },
 };
@@ -207,4 +236,3 @@ const formatHora = (hora?: string | null): string | null => {
 
   return hora;
 };
-

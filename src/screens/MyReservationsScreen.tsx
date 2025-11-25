@@ -145,15 +145,27 @@ const MyReservationsScreen: React.FC<MyReservationsScreenProps> = ({ navigation 
 
   const renderEmptyState = () => (
     <View style={styles.feedbackContainer}>
-      <Text style={styles.feedbackText}>
+      <Text style={styles.emptyIcon}>📅</Text>
+      <Text style={styles.emptyTitle}>
         {filter === 'Próximas'
-          ? 'No tienes reservas próximas. ¡Reserva una sesión para comenzar!'
+          ? 'No tienes reservas próximas'
           : filter === 'Historial'
-          ? 'Aún no tienes historial de clases.'
+          ? 'Aún no tienes historial'
           : filter === 'Canceladas'
-          ? 'No hay reservas canceladas.'
-          : 'No se encontraron reservas.'}
+          ? 'No hay reservas canceladas'
+          : 'No hay reservas'}
       </Text>
+      <Text style={styles.feedbackText}>
+        {filter === 'Próximas' && '¡Reserva una sesión para comenzar!'}
+      </Text>
+      {filter === 'Próximas' && (
+        <TouchableOpacity
+          style={styles.ctaButton}
+          onPress={() => navigation.navigate('Actividades')}
+        >
+          <Text style={styles.ctaButtonText}>Ver Actividades Disponibles</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -164,7 +176,7 @@ const MyReservationsScreen: React.FC<MyReservationsScreenProps> = ({ navigation 
           <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
 
-        <Text style={styles.title}>Mis reservas</Text>
+        <Text style={styles.title}>Mis Reservas</Text>
 
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.themeButton} onPress={toggleTheme}>
@@ -240,64 +252,96 @@ const MyReservationsScreen: React.FC<MyReservationsScreenProps> = ({ navigation 
 
         {filtered.map((reserva) => {
           const fecha = formatFecha(reserva.fechaSesion);
+          const fechaCorta = formatFechaCorta(reserva.fechaSesion);
           const horaTexto = buildHorario(reserva.horaInicio, reserva.horaFin);
           const cancelable =
             reserva.estado === 'confirmada' && buildDate(reserva).getTime() >= Date.now();
 
           return (
             <View key={reserva.id} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>{reserva.actividad}</Text>
+              {/* Status Badge at Top */}
+              <View style={styles.cardTopBar}>
                 <View style={[styles.statusBadge, getStatusStyle(reserva.estado, styles)]}>
                   <Text style={styles.statusText}>{tituloEstado(reserva.estado)}</Text>
                 </View>
               </View>
 
-              <View style={styles.cardBody}>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoIcon}>📅</Text>
-                  <Text style={styles.infoText}>{fecha}</Text>
-                </View>
-
-                {horaTexto ? (
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoIcon}>🕒</Text>
-                    <Text style={styles.infoText}>{horaTexto}</Text>
-                  </View>
-                ) : null}
-
-                {reserva.espacio ? (
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoIcon}>📍</Text>
-                    <Text style={styles.infoText}>
-                      {reserva.espacio}
-                      {reserva.sede ? ` · ${reserva.sede}` : ''}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {reserva.entrenador ? (
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoIcon}>👤</Text>
-                    <Text style={styles.infoText}>{reserva.entrenador}</Text>
-                  </View>
-                ) : null}
-
-                {reserva.observaciones ? (
-                  <View style={styles.infoNotes}>
-                    <Text style={styles.notesTitle}>Notas</Text>
-                    <Text style={styles.notesText}>{reserva.observaciones}</Text>
-                  </View>
-                ) : null}
-
-                {reserva.motivoCancelacion ? (
-                  <View style={styles.infoNotes}>
-                    <Text style={styles.notesTitle}>Motivo cancelación</Text>
-                    <Text style={styles.notesText}>{reserva.motivoCancelacion}</Text>
-                  </View>
-                ) : null}
+              {/* Activity Name */}
+              <View style={styles.activityHeader}>
+                <Text style={styles.activityName}>{reserva.actividad}</Text>
               </View>
 
+              {/* Highlighted Date & Time */}
+              <View style={styles.dateTimeSection}>
+                <View style={styles.dateTimeBox}>
+                  <Text style={styles.dateTimeIcon}>📅</Text>
+                  <View style={styles.dateTimeText}>
+                    <Text style={styles.dateLabel}>Fecha</Text>
+                    <Text style={styles.dateValue}>{fechaCorta}</Text>
+                  </View>
+                </View>
+
+                {horaTexto && (
+                  <View style={styles.dateTimeBox}>
+                    <Text style={styles.dateTimeIcon}>🕐</Text>
+                    <View style={styles.dateTimeText}>
+                      <Text style={styles.dateLabel}>Horario</Text>
+                      <Text style={styles.dateValue}>{horaTexto}</Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {/* Details Grid */}
+              <View style={styles.detailsSection}>
+                {reserva.entrenador && (
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailIcon}>👨‍🏫</Text>
+                    <View style={styles.detailTextContainer}>
+                      <Text style={styles.detailLabel}>Entrenador</Text>
+                      <Text style={styles.detailValue}>{reserva.entrenador}</Text>
+                    </View>
+                  </View>
+                )}
+
+                {reserva.espacio && (
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailIcon}>📍</Text>
+                    <View style={styles.detailTextContainer}>
+                      <Text style={styles.detailLabel}>Espacio</Text>
+                      <Text style={styles.detailValue}>{reserva.espacio}</Text>
+                    </View>
+                  </View>
+                )}
+
+                {reserva.sede && (
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailIcon}>🏢</Text>
+                    <View style={styles.detailTextContainer}>
+                      <Text style={styles.detailLabel}>Sede</Text>
+                      <Text style={styles.detailValue}>{reserva.sede}</Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {/* Observaciones */}
+              {reserva.observaciones && (
+                <View style={styles.infoNotes}>
+                  <Text style={styles.notesTitle}>📝 Observaciones</Text>
+                  <Text style={styles.notesText}>{reserva.observaciones}</Text>
+                </View>
+              )}
+
+              {/* Motivo Cancelación */}
+              {reserva.motivoCancelacion && (
+                <View style={[styles.infoNotes, styles.cancelationNote]}>
+                  <Text style={styles.notesTitle}>❌ Motivo de Cancelación</Text>
+                  <Text style={styles.notesText}>{reserva.motivoCancelacion}</Text>
+                </View>
+              )}
+
+              {/* Cancel Button */}
               {cancelable && (
                 <TouchableOpacity
                   style={styles.cancelButton}
@@ -305,15 +349,17 @@ const MyReservationsScreen: React.FC<MyReservationsScreenProps> = ({ navigation 
                   disabled={processingId === reserva.id}
                 >
                   {processingId === reserva.id ? (
-                    <ActivityIndicator size="small" color={colors.background} />
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
-                    <Text style={styles.cancelButtonText}>Cancelar reserva</Text>
+                    <Text style={styles.cancelButtonText}>❌ Cancelar Reserva</Text>
                   )}
                 </TouchableOpacity>
               )}
             </View>
           );
         })}
+
+        <View style={{ height: 20 }} />
       </ScrollView>
     </View>
   );
@@ -336,15 +382,15 @@ const getStatusStyle = (estado: string, styles: ReturnType<typeof createStyles>)
 const tituloEstado = (estado: string) => {
   switch (estado) {
     case 'confirmada':
-      return 'Confirmada';
+      return '✓ Confirmada';
     case 'pendiente':
-      return 'Pendiente';
+      return '⏳ Pendiente';
     case 'cancelada':
-      return 'Cancelada';
+      return '✕ Cancelada';
     case 'asistio':
-      return 'Asistió';
+      return '✓ Asistió';
     case 'no_asistio':
-      return 'No asistió';
+      return '✕ No asistió';
     default:
       return estado;
   }
@@ -389,6 +435,19 @@ const formatFecha = (fecha: string) => {
     month: 'short',
     year: 'numeric',
   });
+};
+
+const formatFechaCorta = (fecha: string) => {
+  if (!fecha) {
+    return 'N/A';
+  }
+  const date = new Date(fecha);
+  if (isNaN(date.getTime())) {
+    return fecha;
+  }
+  const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  return `${dias[date.getDay()]} ${date.getDate()} ${meses[date.getMonth()]}`;
 };
 
 const createStyles = (colors: any, isDarkMode: boolean) =>
@@ -497,18 +556,40 @@ const createStyles = (colors: any, isDarkMode: boolean) =>
       fontWeight: '500',
     },
     filterTextActive: {
-      color: colors.background,
+      color: '#FFFFFF',
     },
     feedbackContainer: {
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 30,
+      paddingVertical: 40,
       paddingHorizontal: 20,
+    },
+    emptyIcon: {
+      fontSize: 48,
+      marginBottom: 16,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
     },
     feedbackText: {
       color: colors.textSecondary,
       textAlign: 'center',
-      marginTop: 10,
+      fontSize: 14,
+      marginBottom: 20,
+    },
+    ctaButton: {
+      backgroundColor: colors.primary,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 12,
+      marginTop: 8,
+    },
+    ctaButtonText: {
+      color: '#FFFFFF',
+      fontWeight: '600',
       fontSize: 14,
     },
     errorText: {
@@ -524,7 +605,7 @@ const createStyles = (colors: any, isDarkMode: boolean) =>
       borderRadius: 20,
     },
     retryButtonText: {
-      color: colors.background,
+      color: '#FFFFFF',
       fontWeight: '600',
     },
     list: {
@@ -534,7 +615,7 @@ const createStyles = (colors: any, isDarkMode: boolean) =>
     card: {
       backgroundColor: colors.surface,
       borderRadius: 16,
-      padding: 18,
+      padding: 0,
       marginBottom: 16,
       borderWidth: 1,
       borderColor: colors.border,
@@ -543,23 +624,19 @@ const createStyles = (colors: any, isDarkMode: boolean) =>
       shadowOpacity: 0.3,
       shadowRadius: 6,
       elevation: 3,
+      overflow: 'hidden',
     },
-    cardHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 12,
-    },
-    cardTitle: {
-      color: colors.text,
-      fontSize: 18,
-      fontWeight: '600',
-      flex: 1,
-      marginRight: 12,
+    cardTopBar: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: isDarkMode ? '#1a1a1a' : '#f9fafb',
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      alignItems: 'flex-end',
     },
     statusBadge: {
-      paddingHorizontal: 10,
-      paddingVertical: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
       borderRadius: 12,
     },
     statusBadgeSuccess: {
@@ -576,57 +653,120 @@ const createStyles = (colors: any, isDarkMode: boolean) =>
     },
     statusText: {
       color: isDarkMode ? colors.text : '#1f2937',
-      fontWeight: '600',
+      fontWeight: '700',
       fontSize: 12,
     },
-    cardBody: {
-      marginBottom: 12,
+    activityHeader: {
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 12,
     },
-    infoRow: {
+    activityName: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: colors.text,
+    },
+    dateTimeSection: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+      paddingBottom: 16,
+      gap: 12,
+    },
+    dateTimeBox: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 6,
+      backgroundColor: colors.primary + '15',
+      padding: 12,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.primary + '30',
     },
-    infoIcon: {
+    dateTimeIcon: {
+      fontSize: 24,
       marginRight: 8,
-      width: 20,
-      textAlign: 'center',
     },
-    infoText: {
-      color: colors.textSecondary,
-      fontSize: 14,
+    dateTimeText: {
       flex: 1,
     },
+    dateLabel: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      marginBottom: 2,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+    },
+    dateValue: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    detailsSection: {
+      paddingHorizontal: 16,
+      paddingBottom: 12,
+    },
+    detailItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    detailIcon: {
+      fontSize: 20,
+      marginRight: 12,
+      width: 28,
+    },
+    detailTextContainer: {
+      flex: 1,
+    },
+    detailLabel: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      marginBottom: 2,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+    },
+    detailValue: {
+      fontSize: 15,
+      color: colors.text,
+      fontWeight: '500',
+    },
     infoNotes: {
-      marginTop: 10,
+      marginHorizontal: 16,
+      marginBottom: 12,
       backgroundColor: isDarkMode ? '#1f1f1f' : '#f5f5f5',
-      padding: 10,
-      borderRadius: 10,
+      padding: 12,
+      borderRadius: 12,
+    },
+    cancelationNote: {
+      backgroundColor: isDarkMode ? '#3a1414' : '#fef2f2',
+      borderWidth: 1,
+      borderColor: isDarkMode ? '#6b1f1f' : '#fecaca',
     },
     notesTitle: {
-      fontSize: 12,
+      fontSize: 11,
       color: colors.textSecondary,
-      marginBottom: 4,
-      fontWeight: '600',
+      marginBottom: 6,
+      fontWeight: '700',
+      textTransform: 'uppercase',
     },
     notesText: {
       color: colors.text,
       fontSize: 14,
+      lineHeight: 20,
     },
     cancelButton: {
+      margin: 16,
       marginTop: 4,
-      backgroundColor: colors.error,
-      paddingVertical: 12,
-      borderRadius: 10,
+      backgroundColor: '#ef4444',
+      paddingVertical: 14,
+      borderRadius: 12,
       alignItems: 'center',
     },
     cancelButtonText: {
       color: '#ffffff',
-      fontWeight: '600',
-      fontSize: 14,
+      fontWeight: '700',
+      fontSize: 15,
     },
   });
 
 export default MyReservationsScreen;
-
-

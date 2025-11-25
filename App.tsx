@@ -2,15 +2,21 @@ import React, { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from './src/context/ThemeContext';
+import { LimpiezaProvider } from './src/context/LimpiezaContext';
 
 // Importar pantallas
 import LoginScreen from './src/screens/LoginScreen';
-import RegisterScreen from './src/screens/RegisterScreen';
+import RegisterScreenWizard from './src/screens/RegisterScreenWizard';
 import HomeScreen from './src/screens/HomeScreen';
 import ReservasScreen from './src/screens/ReservasScreen';
 import MembresiasScreen from './src/screens/MembresiasScreen';
 import ActivitiesScreen from './src/screens/ActivitiesScreen';
 import MyReservationsScreen from './src/screens/MyReservationsScreen';
+import PerfilScreen from './src/screens/PerfilScreen';
+
+// Pantallas de Limpieza
+import TareasLimpiezaScreen from './src/screens/TareasLimpiezaScreen';
+import PerfilLimpiezaScreen from './src/screens/PerfilLimpiezaScreen';
 
 type ScreenName =
   | 'Login'
@@ -19,7 +25,10 @@ type ScreenName =
   | 'Reservas'
   | 'Membresias'
   | 'Actividades'
-  | 'MisReservas';
+  | 'MisReservas'
+  | 'Perfil'
+  | 'TareasLimpieza'
+  | 'PerfilLimpieza';
 
 interface ScreenState {
   name: ScreenName;
@@ -67,7 +76,7 @@ export default function App() {
       case 'Login':
         return <LoginScreen navigation={navigation} />;
       case 'Register':
-        return <RegisterScreen navigation={navigation} />;
+        return <RegisterScreenWizard navigation={navigation} />;
       case 'Home':
         return <HomeScreen navigation={navigation} />;
       case 'Reservas':
@@ -84,6 +93,12 @@ export default function App() {
         return <ActivitiesScreen navigation={navigation} />;
       case 'MisReservas':
         return <MyReservationsScreen navigation={navigation} />;
+      case 'Perfil':
+        return <PerfilScreen navigation={navigation} />;
+      case 'TareasLimpieza':
+        return <TareasLimpiezaScreen navigation={navigation} />;
+      case 'PerfilLimpieza':
+        return <PerfilLimpiezaScreen navigation={navigation} />;
       default:
         return <LoginScreen navigation={navigation} />;
     }
@@ -91,10 +106,12 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <SafeAreaProvider>
-        <StatusBar style="auto" />
-        {renderScreen()}
-      </SafeAreaProvider>
+      <LimpiezaProvider>
+        <SafeAreaProvider>
+          <StatusBar style="auto" />
+          {renderScreen()}
+        </SafeAreaProvider>
+      </LimpiezaProvider>
     </ThemeProvider>
   );
 }

@@ -6,6 +6,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import authService from '../services/authService';
@@ -18,6 +21,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { isDarkMode, toggleTheme, colors } = useTheme();
 
   const handleLogin = async () => {
@@ -26,10 +30,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       return;
     }
 
-    // Validar formato de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Validar formato de email (Gmail, Hotmail o Outlook)
+    const emailRegex = /^[^\s@]+@(gmail\.com|hotmail\.com|outlook\.com)$/i;
     if (!emailRegex.test(email)) {
-      Alert.alert('Error', 'Por favor ingresa un email válido');
+      Alert.alert('Error', 'Por favor ingresa un email válido de Gmail, Hotmail o Outlook');
       return;
     }
 
@@ -44,27 +48,49 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     try {
       console.log('=== LOGIN CON BACKEND DJANGO ===');
       console.log('Email:', email);
-      
+
       // Verificar conexión con backend
       const backendConnected = await authService.checkBackendConnection();
       if (!backendConnected) {
         setLoading(false);
         Alert.alert(
-          'Error de conexión', 
+          'Error de conexión',
           'No se puede conectar con el servidor. Asegúrate de que el backend Django esté ejecutándose en http://192.168.1.70:8000'
         );
         return;
       }
-      
+
       // Intentar login con backend Django
       const response = await authService.login({ email, password });
-      
-      setLoading(false);
+
       console.log('✅ Login exitoso con backend Django');
-      
-      // Login exitoso - navegar al Home
-      navigation.replace('Home');
-      
+
+      // Detectar si es personal de limpieza
+      let esPersonalLimpieza = false;
+      try {
+        const limpiezaService = (await import('../services/limpiezaService')).default;
+        await limpiezaService.getEmpleadoActual();
+        esPersonalLimpieza = true;
+        console.log('👷 Usuario identificado como Personal de Limpieza');
+      } catch (error: any) {
+        // No es personal de limpieza, es un cliente normal
+        // Este error 404 es esperado para clientes, no lo mostramos
+        if (error.response?.status === 404) {
+          console.log('👤 Usuario identificado como Cliente');
+        } else {
+          console.log('👤 Usuario identificado como Cliente (error:', error.message, ')');
+        }
+      }
+
+      setLoading(false);
+
+      // Navegar según el tipo de usuario
+      if (esPersonalLimpieza) {
+        navigation.replace('TareasLimpieza');
+      } else {
+        navigation.replace('Home');
+      }
+
     } catch (error: any) {
       console.error('💥 Error en login:', error);
       setLoading(false);
@@ -89,76 +115,95 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.headerText, { color: colors.text }]}>Login</Text>
-        <TouchableOpacity style={styles.themeButton} onPress={toggleTheme}>
-          <Text style={styles.themeIcon}>{isDarkMode ? '☀️' : '🌙'}</Text>
-        </TouchableOpacity>
-      </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={[styles.headerText, { color: colors.text }]}>Login</Text>
+            <TouchableOpacity style={styles.themeButton} onPress={toggleTheme}>
+              <Text style={styles.themeIcon}>{isDarkMode ? '☀️' : '🌙'}</Text>
+            </TouchableOpacity>
+          </View>
 
-      {/* Logo and Welcome */}
-      <View style={styles.logoContainer}>
-        <View style={[styles.logoIcon, { backgroundColor: colors.surface }]}>
-          <Text style={styles.dumbbellIcon}>🏋️</Text>
+          {/* Logo and Welcome */}
+          <View style={styles.logoContainer}>
+            <View style={[styles.logoIcon, { backgroundColor: colors.surface }]}>
+              <Text style={styles.dumbbellIcon}>🏋️</Text>
+            </View>
+
+            <Text style={[styles.welcomeTitle, { color: colors.text }]}>Bienvenido de vuelta</Text>
+            <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>Inicia sesión para continuar</Text>
+          </View>
+
+            {/* Form */}
+            <View style={styles.formContainer}>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>Correo electrónico</Text>
+              <TextInput
+                style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.background }]}
+                placeholder="tu@gmail.com"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+
+              <View style={styles.passwordLabelContainer}>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>Contraseña</Text>
+                <TouchableOpacity style={styles.forgotPassword}>
+                  <Text style={[styles.forgotPasswordText, { color: colors.textSecondary }]}>¿Olvidaste tu Contraseña?</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.passwordInputContainer}>
+                <TextInput
+                  style={[styles.passwordInput, { borderColor: colors.border, color: colors.text, backgroundColor: colors.background }]}
+                  placeholder="Tu contraseña"
+                  placeholderTextColor={colors.textSecondary}
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <TouchableOpacity
+                  style={styles.eyeIcon}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  <Text style={styles.eyeIconText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.loginButton, { backgroundColor: colors.text }, loading && styles.loginButtonDisabled]}
+                onPress={handleLogin}
+                disabled={loading}
+              >
+                <Text style={[styles.loginButtonText, { color: colors.background }]}>
+                  {loading ? 'Iniciando...' : 'Iniciar Sesión'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Botón de Registro */}
+              <TouchableOpacity
+                style={styles.registerButton}
+                onPress={() => navigation.navigate('Register')}
+              >
+                <Text style={[styles.registerButtonText, { color: colors.textSecondary }]}>
+                  ¿No tienes cuenta? Regístrate aquí
+                </Text>
+              </TouchableOpacity>
+
+          </View>
         </View>
-        
-        <Text style={[styles.welcomeTitle, { color: colors.text }]}>Bienvenido de vuelta</Text>
-        <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>Inicia sesión para continuar</Text>
-      </View>
-
-      {/* Form */}
-      <View style={styles.formContainer}>
-        <Text style={[styles.inputLabel, { color: colors.text }]}>Correo electrónico</Text>
-        <TextInput
-          style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.background }]}
-          placeholder="tu@email.com"
-          placeholderTextColor={colors.textSecondary}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          value={email}
-          onChangeText={setEmail}
-        />
-
-        <View style={styles.passwordContainer}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>Contraseña</Text>
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={[styles.forgotPasswordText, { color: colors.textSecondary }]}>¿Olvidaste tu Contraseña?</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <TextInput
-          style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.background }]}
-          placeholder="Tu contraseña"
-          placeholderTextColor={colors.textSecondary}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
-
-        <TouchableOpacity 
-          style={[styles.loginButton, { backgroundColor: colors.text }, loading && styles.loginButtonDisabled]}
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          <Text style={[styles.loginButtonText, { color: colors.background }]}>
-            {loading ? 'Iniciando...' : 'Iniciar Sesión'}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Botón de Registro */}
-        <TouchableOpacity 
-          style={styles.registerButton}
-          onPress={() => navigation.navigate('Register')}
-        >
-          <Text style={[styles.registerButtonText, { color: colors.textSecondary }]}>
-            ¿No tienes cuenta? Regístrate aquí
-          </Text>
-        </TouchableOpacity>
-
-      </View>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -229,11 +274,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 20,
   },
-  passwordContainer: {
+  passwordLabelContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  passwordInputContainer: {
+    position: 'relative',
+    marginBottom: 20,
+  },
+  passwordInput: {
+    height: 50,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    paddingRight: 50,
+    fontSize: 16,
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: 15,
+    top: 13,
+    padding: 5,
+  },
+  eyeIconText: {
+    fontSize: 20,
   },
   forgotPassword: {
     padding: 5,

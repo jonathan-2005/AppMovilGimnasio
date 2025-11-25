@@ -1,5 +1,6 @@
 import api from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Sede } from '../types/sede';
 
 export interface LoginRequest {
   email: string;
@@ -27,6 +28,7 @@ export interface RegisterRequest {
   genero?: string;
   objetivo_fitness?: string;
   nivel_experiencia?: string;
+  sede_id: number; // ✅ AGREGADO: sede_id es ahora requerido
 }
 
 class AuthService {
@@ -94,6 +96,32 @@ class AuthService {
         console.error('🔴 Backend Django no disponible:', error?.message || error);
         return false;
       }
+    }
+  }
+
+  // ✅ NUEVO: Obtener sedes disponibles para registro
+  async obtenerSedesDisponibles(): Promise<Sede[]> {
+    try {
+      console.log('🏢 Obteniendo sedes disponibles...');
+      const response = await api.get('/sedes-disponibles/');
+      console.log(`✅ ${response.data.length} sedes disponibles`);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Error al obtener sedes:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  // ✅ NUEVO: Obtener información del usuario autenticado
+  async obtenerUsuarioActual(): Promise<any> {
+    try {
+      console.log('👤 Obteniendo información del usuario actual...');
+      const response = await api.get('/auth/me/');
+      console.log('✅ Información de usuario obtenida:', response.data.email);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Error al obtener usuario actual:', error.response?.data || error.message);
+      throw error;
     }
   }
 }
