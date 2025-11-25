@@ -140,7 +140,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
         setLoading(false);
         Alert.alert(
           'Error de conexión', 
-          'No se puede conectar con el servidor. Asegúrate de que el backend Django esté ejecutándose en http://192.168.1.70:8000'
+          'No se puede conectar con el servidor. Verifica tu conexión a internet y que el backend esté disponible.'
         );
         return;
       }

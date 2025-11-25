@@ -22,13 +22,13 @@ export const config = {
   DEBUG: __DEV__, // true en desarrollo, false en producción
 };
 
-// URL completa para diferentes endpoints
+// URL completa para diferentes endpoints (referencia, no todos se usan directamente)
 export const API_ENDPOINTS = {
   LOGIN: `${config.API_BASE_URL}token/`,
   REFRESH: `${config.API_BASE_URL}token/refresh/`,
-  REGISTER: `${config.API_BASE_URL}auth/register/`,
+  REGISTER: `${config.API_BASE_URL}registro/cliente/`,
   MEMBRESIAS: `${config.API_BASE_URL}membresias/`,
-  RESERVAS: `${config.API_BASE_URL}horarios/reservas/`,
+  RESERVAS: `${config.API_BASE_URL}horarios/reservas-clases/`,
   SESIONES: `${config.API_BASE_URL}horarios/sesiones/`,
   TIPOS_ACTIVIDAD: `${config.API_BASE_URL}horarios/tipos-actividad/`,
 };
