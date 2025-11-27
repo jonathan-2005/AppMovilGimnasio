@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Platform,
   KeyboardAvoidingView,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -59,8 +61,23 @@ const RegisterScreenWizard: React.FC<RegisterScreenWizardProps> = ({ navigation 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showSexoModal, setShowSexoModal] = useState(false);
+  const [showExperienciaModal, setShowExperienciaModal] = useState(false);
+  const [showSedeModal, setShowSedeModal] = useState(false);
   const { colors } = useTheme();
   const scrollViewRef = useRef<ScrollView>(null);
+
+  const sexoOptions = [
+    { label: 'Seleccionar', value: '' },
+    { label: 'Masculino', value: 'masculino' },
+    { label: 'Femenino', value: 'femenino' },
+  ];
+
+  const experienciaOptions = [
+    { label: 'Principiante', value: 'principiante' },
+    { label: 'Intermedio', value: 'intermedio' },
+    { label: 'Avanzado', value: 'avanzado' },
+  ];
 
   useEffect(() => {
     const cargarSedes = async () => {
@@ -397,30 +414,26 @@ const RegisterScreenWizard: React.FC<RegisterScreenWizardProps> = ({ navigation 
       </Text>
 
       <Text style={[styles.label, { color: colors.text }]}>Sexo *</Text>
-      <View style={[styles.pickerContainer, { borderColor: colors.border, backgroundColor: colors.background }]}>
-        <Picker
-          selectedValue={formData.sexo}
-          onValueChange={(value) => handleInputChange('sexo', value)}
-          style={[styles.picker, { color: colors.text }]}
-        >
-          <Picker.Item label="Seleccionar" value="" />
-          <Picker.Item label="Masculino" value="masculino" />
-          <Picker.Item label="Femenino" value="femenino" />
-        </Picker>
-      </View>
+      <TouchableOpacity
+        style={[styles.pickerButton, { borderColor: colors.border, backgroundColor: colors.background }]}
+        onPress={() => setShowSexoModal(true)}
+      >
+        <Text style={[styles.pickerButtonText, { color: formData.sexo ? colors.text : colors.textSecondary }]}>
+          {formData.sexo ? sexoOptions.find(o => o.value === formData.sexo)?.label : 'Seleccionar'}
+        </Text>
+        <Text style={[styles.pickerArrow, { color: colors.text }]}>▼</Text>
+      </TouchableOpacity>
 
       <Text style={[styles.label, { color: colors.text }]}>Nivel de Experiencia</Text>
-      <View style={[styles.pickerContainer, { borderColor: colors.border, backgroundColor: colors.background }]}>
-        <Picker
-          selectedValue={formData.nivel_experiencia}
-          onValueChange={(value) => handleInputChange('nivel_experiencia', value)}
-          style={[styles.picker, { color: colors.text }]}
-        >
-          <Picker.Item label="Principiante" value="principiante" />
-          <Picker.Item label="Intermedio" value="intermedio" />
-          <Picker.Item label="Avanzado" value="avanzado" />
-        </Picker>
-      </View>
+      <TouchableOpacity
+        style={[styles.pickerButton, { borderColor: colors.border, backgroundColor: colors.background }]}
+        onPress={() => setShowExperienciaModal(true)}
+      >
+        <Text style={[styles.pickerButtonText, { color: colors.text }]}>
+          {experienciaOptions.find(o => o.value === formData.nivel_experiencia)?.label || 'Principiante'}
+        </Text>
+        <Text style={[styles.pickerArrow, { color: colors.text }]}>▼</Text>
+      </TouchableOpacity>
 
       <Text style={[styles.label, { color: colors.text }]}>Sede *</Text>
       {loadingSedes ? (
@@ -431,22 +444,17 @@ const RegisterScreenWizard: React.FC<RegisterScreenWizardProps> = ({ navigation 
           </Text>
         </View>
       ) : (
-        <View style={[styles.pickerContainer, { borderColor: colors.border, backgroundColor: colors.background }]}>
-          <Picker
-            selectedValue={formData.sede_id}
-            onValueChange={(value) => handleInputChange('sede_id', value.toString())}
-            style={[styles.picker, { color: colors.text }]}
-          >
-            <Picker.Item label="Selecciona una sede" value={0} />
-            {sedes.map((sede) => (
-              <Picker.Item
-                key={sede.id}
-                label={`${sede.nombre} - ${sede.direccion}`}
-                value={sede.id}
-              />
-            ))}
-          </Picker>
-        </View>
+        <TouchableOpacity
+          style={[styles.pickerButton, { borderColor: colors.border, backgroundColor: colors.background }]}
+          onPress={() => setShowSedeModal(true)}
+        >
+          <Text style={[styles.pickerButtonText, { color: formData.sede_id ? colors.text : colors.textSecondary }]}>
+            {formData.sede_id 
+              ? `${sedes.find(s => s.id === formData.sede_id)?.nombre} - ${sedes.find(s => s.id === formData.sede_id)?.direccion}`
+              : 'Selecciona una sede'}
+          </Text>
+          <Text style={[styles.pickerArrow, { color: colors.text }]}>▼</Text>
+        </TouchableOpacity>
       )}
 
       <Text style={[styles.label, { color: colors.text }]}>Objetivo Fitness</Text>
@@ -522,7 +530,8 @@ const RegisterScreenWizard: React.FC<RegisterScreenWizardProps> = ({ navigation 
           ref={scrollViewRef}
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
+          nestedScrollEnabled={true}
           contentContainerStyle={{ paddingBottom: 20 }}
         >
           {currentStep === 1 && renderStep1()}
@@ -530,6 +539,167 @@ const RegisterScreenWizard: React.FC<RegisterScreenWizardProps> = ({ navigation 
           {currentStep === 3 && renderStep3()}
           {currentStep === 4 && renderStep4()}
         </ScrollView>
+
+        {/* Modales para selección */}
+        {/* Modal Sexo */}
+        <Modal
+          visible={showSexoModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowSexoModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowSexoModal(false)}
+          >
+            <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Selecciona tu sexo</Text>
+              <FlatList
+                data={sexoOptions}
+                keyExtractor={(item) => item.value}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.modalOption,
+                      { borderBottomColor: colors.border },
+                      formData.sexo === item.value && { backgroundColor: colors.text + '20' },
+                    ]}
+                    onPress={() => {
+                      handleInputChange('sexo', item.value);
+                      setShowSexoModal(false);
+                    }}
+                  >
+                    <Text style={[styles.modalOptionText, { color: colors.text }]}>
+                      {item.label}
+                    </Text>
+                    {formData.sexo === item.value && (
+                      <Text style={[styles.modalCheck, { color: colors.text }]}>✓</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              />
+              <TouchableOpacity
+                style={[styles.modalCancelButton, { borderColor: colors.border }]}
+                onPress={() => setShowSexoModal(false)}
+              >
+                <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Modal Nivel de Experiencia */}
+        <Modal
+          visible={showExperienciaModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowExperienciaModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowExperienciaModal(false)}
+          >
+            <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Selecciona tu nivel</Text>
+              <FlatList
+                data={experienciaOptions}
+                keyExtractor={(item) => item.value}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.modalOption,
+                      { borderBottomColor: colors.border },
+                      formData.nivel_experiencia === item.value && { backgroundColor: colors.text + '20' },
+                    ]}
+                    onPress={() => {
+                      handleInputChange('nivel_experiencia', item.value);
+                      setShowExperienciaModal(false);
+                    }}
+                  >
+                    <Text style={[styles.modalOptionText, { color: colors.text }]}>
+                      {item.label}
+                    </Text>
+                    {formData.nivel_experiencia === item.value && (
+                      <Text style={[styles.modalCheck, { color: colors.text }]}>✓</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              />
+              <TouchableOpacity
+                style={[styles.modalCancelButton, { borderColor: colors.border }]}
+                onPress={() => setShowExperienciaModal(false)}
+              >
+                <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Modal Sede */}
+        <Modal
+          visible={showSedeModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowSedeModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowSedeModal(false)}
+          >
+            <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Selecciona una sede</Text>
+              {loadingSedes ? (
+                <View style={styles.modalLoadingContainer}>
+                  <ActivityIndicator size="small" color={colors.text} />
+                  <Text style={[styles.modalLoadingText, { color: colors.textSecondary }]}>
+                    Cargando sedes...
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={[{ id: 0, nombre: 'Selecciona una sede', direccion: '' }, ...sedes]}
+                  keyExtractor={(item) => item.id.toString()}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={[
+                        styles.modalOption,
+                        { borderBottomColor: colors.border },
+                        formData.sede_id === item.id && { backgroundColor: colors.text + '20' },
+                      ]}
+                      onPress={() => {
+                        if (item.id !== 0) {
+                          handleInputChange('sede_id', item.id.toString());
+                        }
+                        setShowSedeModal(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.modalOptionText,
+                          { color: item.id === 0 ? colors.textSecondary : colors.text },
+                        ]}
+                      >
+                        {item.id === 0 ? item.nombre : `${item.nombre} - ${item.direccion}`}
+                      </Text>
+                      {formData.sede_id === item.id && item.id !== 0 && (
+                        <Text style={[styles.modalCheck, { color: colors.text }]}>✓</Text>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                />
+              )}
+              <TouchableOpacity
+                style={[styles.modalCancelButton, { borderColor: colors.border }]}
+                onPress={() => setShowSedeModal(false)}
+              >
+                <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         {/* Botones de navegación */}
         <View style={styles.buttonContainer}>
@@ -656,14 +826,79 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     textAlignVertical: 'top',
   },
-  pickerContainer: {
+  pickerButton: {
+    height: 50,
     borderWidth: 1,
     borderRadius: 8,
+    paddingHorizontal: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 8,
-    overflow: 'hidden',
   },
-  picker: {
-    height: 50,
+  pickerButtonText: {
+    fontSize: 16,
+    flex: 1,
+  },
+  pickerArrow: {
+    fontSize: 12,
+    marginLeft: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+  },
+  modalOptionText: {
+    fontSize: 16,
+    flex: 1,
+  },
+  modalCheck: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  modalCancelButton: {
+    marginTop: 10,
+    marginHorizontal: 20,
+    paddingVertical: 15,
+    borderWidth: 1,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  modalLoadingText: {
+    marginLeft: 10,
+    fontSize: 14,
   },
   loadingContainer: {
     flexDirection: 'row',
